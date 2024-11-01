@@ -33,7 +33,7 @@ class Jogador(models.Model):
     assistencias = models.IntegerField(default=0, null=True, blank=True)
     turnovers = models.IntegerField(default=0, null=True, blank=True)
     roubos_bola = models.IntegerField(default=0, null=True, blank=True)
-    time = models.ForeignKey(Time, on_delete=models.SET_NULL, related_name='jogadores')
+    time = models.ForeignKey(Time, on_delete=models.CASCADE, related_name='jogadores')
     def __str__(self):
         return self.nome
 
