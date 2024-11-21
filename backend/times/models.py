@@ -14,7 +14,7 @@ class Time(models.Model):
     nome = models.CharField(max_length=100, null=True, blank=True)
     regiao = models.CharField(max_length=100, null=True, blank=True)
     treinador = models.CharField(max_length=100, null=True, blank=True)
-    numero_jogadores = models.IntegerField(default=0, null=True, blank=True)
+    num_jogadores = models.IntegerField(default=0, null=True, blank=True)
     vitorias = models.IntegerField(default=0, null=True, blank=True)
     derrotas = models.IntegerField(default=0, null=True, blank=True)
     campeonatos_vencidos = models.IntegerField(default=0, null=True, blank=True)
@@ -33,6 +33,7 @@ class Jogador(models.Model):
     assistencias = models.IntegerField(default=0, null=True, blank=True)
     turnovers = models.IntegerField(default=0, null=True, blank=True)
     roubos_bola = models.IntegerField(default=0, null=True, blank=True)
+    num_jogos = models.IntegerField(default=0, null=True, blank=True)
     time = models.ForeignKey(Time, on_delete=models.CASCADE, related_name='jogadores')
     def __str__(self):
         return self.nome
