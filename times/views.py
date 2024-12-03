@@ -1,38 +1,42 @@
 from django.shortcuts import render
-from .models import Time, Jogador
-from django.http import HttpResponse, JsonResponse
-# Create your views here.
-
 from django.http import JsonResponse
-from .models import Time
+from .models import Time, Jogador, Arena, Partida, EstatisticaPartida
 
 def get_times(request):
-    times = Time.objects.all()
-    # Lista para armazenar as informações dos times
+    # Otimizando as consultas com prefetch_related para evitar N+1 problem
+    times = Time.objects.prefetch_related('jogador_set')
+
+    # Lista para armazenar os detalhes dos times
     times_list = []
 
-    # Iterando sobre os times
     for time in times:
-        # Obtém os jogadores associados ao time
-        jogadores = time.jogadores.all()
-
-        # Lista para armazenar os jogadores de cada time
-        jogadores_list = []
-        for jogador in jogadores:
-            # Adiciona os detalhes do jogador à lista
-            jogadores_list.append({
+        # Jogadores associados ao time
+        jogadores_list = [
+            {
                 'nome': jogador.nome,
                 'posicao': jogador.get_posicao_display(),
-                'altura': str(jogador.altura),  # Para garantir que será serializável
+                'status': jogador.get_status_display(),
+                'altura': str(jogador.altura),
                 'pontos': jogador.pontos,
                 'rebotes': jogador.rebotes,
                 'assistencias': jogador.assistencias,
                 'turnovers': jogador.turnovers,
                 'roubos_bola': jogador.roubos_bola,
-            })
+            }
+            for jogador in time.jogador_set.all()
+        ]
 
-        # Adiciona os detalhes do time e seus jogadores à lista de times
+        # Arena associada ao time (verificando se existe)
+        arena = getattr(time, 'arena', None)  # Evita o erro ao acessar uma arena inexistente
+        arena_details = {
+            'nome': arena.nome if arena else None,
+            'local': arena.local if arena else None,
+            'capacidade': arena.capacidade if arena else None,
+        }
+
+        # Adiciona o time e seus detalhes à lista
         times_list.append({
+            'id': time.id,
             'nome': time.nome,
             'regiao': time.regiao,
             'treinador': time.treinador,
@@ -40,8 +44,29 @@ def get_times(request):
             'vitorias': time.vitorias,
             'derrotas': time.derrotas,
             'campeonatos_vencidos': time.campeonatos_vencidos,
-            'jogadores': jogadores_list  # Jogadores associados ao time
+            'descricao':time.descricao,
+            'logo': time.logo.url if time.logo else None,  # URL completa da logo
+            'jogadores': jogadores_list,
+            'arena': arena_details
         })
 
-    # Retorna os times e jogadores associados como resposta JSON
+    # Retorna os dados em formato JSON
     return JsonResponse(times_list, safe=False)
+
+
+def get_jogadores(request, time_id):
+    jogadores = Jogador.objects.filter(time_id=time_id)
+    jogadores_list = [
+        {
+            "nome": jogador.nome,
+            "posicao": jogador.get_posicao_display(),
+            "status": jogador.get_status_display(),
+            "altura": jogador.altura,
+            "pontos": jogador.pontos,
+            "rebotes": jogador.rebotes,
+            "assistencias": jogador.assistencias,
+        }
+        for jogador in jogadores
+    ]
+    return JsonResponse(jogadores_list, safe=False)
+
