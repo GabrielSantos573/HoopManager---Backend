@@ -13,7 +13,9 @@ def get_times(request):
         # Jogadores associados ao time
         jogadores_list = [
             {
+                'id': jogador.id,
                 'nome': jogador.nome,
+                "idade": jogador.idade,
                 'posicao': jogador.get_posicao_display(),
                 'status': jogador.get_status_display(),
                 'altura': str(jogador.altura),
@@ -22,6 +24,7 @@ def get_times(request):
                 'assistencias': jogador.assistencias,
                 'turnovers': jogador.turnovers,
                 'roubos_bola': jogador.roubos_bola,
+                'foto': jogador.foto.url if jogador.foto else None,
             }
             for jogador in time.jogador_set.all()
         ]
@@ -58,13 +61,16 @@ def get_jogadores(request, time_id):
     jogadores = Jogador.objects.filter(time_id=time_id)
     jogadores_list = [
         {
+            'id': jogador.id,
             "nome": jogador.nome,
+            "idade": jogador.idade,
             "posicao": jogador.get_posicao_display(),
             "status": jogador.get_status_display(),
             "altura": jogador.altura,
             "pontos": jogador.pontos,
             "rebotes": jogador.rebotes,
             "assistencias": jogador.assistencias,
+            'foto': jogador.foto.url if jogador.foto else None,
         }
         for jogador in jogadores
     ]

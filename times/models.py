@@ -80,6 +80,7 @@ class Time(models.Model):
 class Jogador(models.Model):
     nome = models.CharField(max_length=100, null=True, blank=True)
     posicao = models.CharField(max_length=2, choices=POSICOES, null=True, blank=True)
+    idade = models.IntegerField(default=0, null=True, blank=True)
     status = models.CharField(max_length=25, choices=STATUS, null=True, blank=True)
     altura = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
     pontos = models.IntegerField(default=0, null=True, blank=True)
