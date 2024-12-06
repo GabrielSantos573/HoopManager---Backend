@@ -8,6 +8,7 @@ urlpatterns = [
     path('', views.get_times, name="get_times"),
     path('get_times/', views.get_times, name="get_times"),
     path("get_jogadores/<int:time_id>/", views.get_jogadores, name="get_jogadores"),
+    path("create_time/", views.create_time, name="create_time"),
 ]
 
 if settings.DEBUG:

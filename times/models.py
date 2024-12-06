@@ -75,7 +75,7 @@ class Time(models.Model):
     descricao = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return self.nome
+        return self.nome if self.nome else "Time sem Nome"
 
 class Jogador(models.Model):
     nome = models.CharField(max_length=100, null=True, blank=True)
@@ -126,6 +126,6 @@ class EstatisticaPartida(models.Model):
     roubos_bola = models.IntegerField(default=0, null=True, blank=True)
     jogador = models.ForeignKey(Jogador, on_delete=models.CASCADE, null=True, blank=True)
     partida = models.ForeignKey(Partida, on_delete=models.CASCADE, null=True, blank=True)
-
+    tempo_jogo = models.DateTimeField(auto_now=False, auto_now_add=False, null=True, blank=True)
     def __str__(self):
         return f"{self.jogador.nome} - {self.partida.arena.nome}"

@@ -1,7 +1,10 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from .models import Time, Jogador, Arena, Partida, EstatisticaPartida
+from django.views.decorators.csrf import csrf_exempt
+import json
 
+@csrf_exempt
 def get_times(request):
     # Otimizando as consultas com prefetch_related para evitar N+1 problem
     times = Time.objects.prefetch_related('jogador_set')
@@ -57,7 +60,7 @@ def get_times(request):
     # Retorna os dados em formato JSON
     return JsonResponse(times_list, safe=False)
 
-
+@csrf_exempt
 def get_jogadores(request, time_id):
     jogadores = Jogador.objects.filter(time_id=time_id)
     jogadores_list = [
@@ -80,3 +83,41 @@ def get_jogadores(request, time_id):
     ]
     return JsonResponse(jogadores_list, safe=False)
 
+@csrf_exempt
+def create_time (request):
+    if request.method == "POST":
+        try:
+            data = request.POST  # Dados textuais enviados no FormData
+            jogadores = json.loads(data.get("jogadores", "[]"))  # Array de jogadores no formato JSON
+
+            # Validação de campos obrigatórios
+            if not data.get("nome") or not data.get("regiao") or not data.get("numero_jogadores"):
+                return JsonResponse({"error": "Campos obrigatórios estão faltando: nome, regiao ou numero_jogadores."}, status=400)
+
+            # Criação do time
+            time = Time.objects.create(
+                nome=data.get("nome"),
+                regiao=data.get("regiao"),
+                treinador=data.get("treinador"),
+                descricao=data.get("descricao"),
+                num_jogadores=int(data.get("numero_jogadores", 0)),
+                logo=request.FILES.get("logo"),  # Logo enviado como arquivo
+            )
+
+            # Criação dos jogadores associados ao time
+            for jogador_data in jogadores:
+                Jogador.objects.create(
+                    nome=jogador_data.get("nome"),
+                    idade=jogador_data.get("idade"),
+                    posicao=jogador_data.get("posicao"),
+                    status=jogador_data.get("status"),
+                    altura=jogador_data.get("altura"),
+                    foto=request.FILES.get("foto"),  # Foto enviada como arquivo
+                    time=time,  # Associação com o time recém-criado
+                )
+
+            return JsonResponse({"message": "Time e jogadores criados com sucesso!"}, status=201)
+        except Exception as e:
+            return JsonResponse({"error": f"Erro ao criar time e jogadores: {str(e)}"}, status=400)
+    else:
+        return JsonResponse({"error": "Método não permitido"}, status=405)
