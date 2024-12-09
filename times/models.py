@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.exceptions import ValidationError
+from datetime import timezone
 
 POSICOES = [
     ('PG', 'Armador'),
@@ -14,6 +15,20 @@ STATUS = [
     ('Lesionado', 'Lesionado'),
     ('Indisponivel', 'Indisponível'),
     ('Ativo', 'Ativo'),
+]
+
+STATUS_PARTIDA = [
+    ('Agendada', 'agendada'),
+    ('em andamento', 'em andamento'),
+    ('finalizada', 'finalizada'),
+]
+
+REGIAO = [
+    ('Norte', 'Norte'),
+    ('Nordeste', 'Nordeste'),
+    ('Centro-Oeste', 'Centro-Oeste'),
+    ('Sudeste', 'Sudeste'),
+    ('Sul', 'Sul'),
 ]
 
 ROLE_CHOICES = (
@@ -65,17 +80,35 @@ class Usuario(AbstractUser):
 
 class Time(models.Model):
     nome = models.CharField(max_length=100, null=True, blank=True)
-    regiao = models.CharField(max_length=100, null=True, blank=True)
+    regiao = models.CharField(max_length=100, choices=REGIAO, null=True, blank=True)
     treinador = models.CharField(max_length=100, null=True, blank=True)
+    endereco = models.CharField(max_length=100, null=True, blank=True)
     num_jogadores = models.IntegerField(default=0, null=True, blank=True)
     vitorias = models.IntegerField(default=0, null=True, blank=True)
     derrotas = models.IntegerField(default=0, null=True, blank=True)
-    campeonatos_vencidos = models.IntegerField(default=0, null=True, blank=True)
     logo = models.ImageField(upload_to='times/logos/', null=True, blank=True)
     descricao = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return self.nome if self.nome else "Time sem Nome"
+
+    def validar_numero_jogadores(self):
+        if self.num_jogadores < 5:
+            raise ValidationError("O time deve ter pelo menos 5 jogadores.")
+
+    def clean(self):
+        if self.nome and (len(self.nome) < 3 or len(self.nome) > 25):
+            raise ValidationError("O nome do time deve ter entre 3 e 25 caracteres.")
+        if self.treinador and (len(self.treinador) < 3 or len(self.treinador) > 25):
+            raise ValidationError("O nome do treinador deve ter entre 3 e 25 caracteres.")
+        if self.num_jogadores < 5:
+            raise ValidationError("O time deve ter pelo menos 5 jogadores.")
+        if self.vitorias < 0 or self.derrotas < 0:
+            raise ValidationError("Vitórias e derrotas não podem ser negativas.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 class Jogador(models.Model):
     nome = models.CharField(max_length=100, null=True, blank=True)
@@ -83,6 +116,7 @@ class Jogador(models.Model):
     idade = models.IntegerField(default=0, null=True, blank=True)
     status = models.CharField(max_length=25, choices=STATUS, null=True, blank=True)
     altura = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    peso = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
     pontos = models.IntegerField(default=0, null=True, blank=True)
     rebotes = models.IntegerField(default=0, null=True, blank=True)
     assistencias = models.IntegerField(default=0, null=True, blank=True)
@@ -91,32 +125,64 @@ class Jogador(models.Model):
     foto = models.ImageField(upload_to='jogadores/fotos/', null=True, blank=True)
     num_jogos = models.IntegerField(default=0, null=True, blank=True)
     time = models.ForeignKey(Time, on_delete=models.CASCADE, null=True, blank=True)
-
+    
     def __str__(self):
         return self.nome
+
+    def clean(self):
+        if self.nome and len(self.nome) < 3:
+            raise ValidationError("O nome do jogador deve ter pelo menos 3 caracteres.")
+        if self.idade <= 12:
+            raise ValidationError("A idade deve ser maior que 12 anos.")
+        if self.altura and self.altura <= 0:
+            raise ValidationError("A altura deve ser positiva.")
+        if self.peso and self.peso <= 0:
+            raise ValidationError("O peso deve ser positivo.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 class Arena(models.Model):
     nome = models.CharField(max_length=100, null=False, blank=False)
     local = models.CharField(max_length=200, null=True, blank=True)
     capacidade = models.IntegerField(null=True, blank=True)
     time_casa = models.OneToOneField(Time, on_delete=models.SET_NULL, null=True, blank=True, related_name='arena')
-
-    def clean(self):
-        if self.capacidade and self.capacidade < 0:
-            raise ValidationError("A capacidade da arena não pode ser negativa.")
-
+    
     def __str__(self):
         return f"{self.nome} - {self.local}"
+
+    def clean(self):
+        if self.capacidade is not None and self.capacidade < 0:
+            raise ValidationError("A capacidade da arena não pode ser negativa.")
+        if self.nome and len(self.nome) < 3:
+            raise ValidationError("O nome da arena deve ter pelo menos 3 caracteres.")
+        
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 
 class Partida(models.Model):
     data = models.DateTimeField(null=False, blank=False)
     arena = models.ForeignKey(Arena, on_delete=models.CASCADE, related_name='partidas')
-    time_visitante = models.ForeignKey(Time, on_delete=models.CASCADE, related_name='partidas_visitante')  # O time da casa é determinado pela arena associada.
+    status = models.CharField(max_length=15, choices=STATUS_PARTIDA, null=True, blank=True)
+    time_visitante = models.ForeignKey(Time, on_delete=models.CASCADE, related_name='partidas_visitante')
     placar_time_casa = models.IntegerField(default=0, null=True, blank=True)
     placar_time_visitante = models.IntegerField(default=0, null=True, blank=True)
 
+    def clean(self):
+        if self.data and self.data < timezone.now():
+            raise ValidationError("A data da partida não pode ser no passado.")
+        if self.placar_time_casa < 0 or self.placar_time_visitante < 0:
+            raise ValidationError("Os placares não podem ser negativos.")
+
     def __str__(self):
         return f"{self.arena.nome} - {self.data.strftime('%d/%m/%Y')}"
+    
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 class EstatisticaPartida(models.Model):
     pontos = models.IntegerField(default=0, null=True, blank=True)
@@ -127,5 +193,15 @@ class EstatisticaPartida(models.Model):
     jogador = models.ForeignKey(Jogador, on_delete=models.CASCADE, null=True, blank=True)
     partida = models.ForeignKey(Partida, on_delete=models.CASCADE, null=True, blank=True)
     tempo_jogo = models.DateTimeField(auto_now=False, auto_now_add=False, null=True, blank=True)
+
+    def clean(self):
+        if self.pontos < 0 or self.rebotes < 0 or self.assistencias < 0 or self.turnovers < 0 or self.roubos_bola < 0:
+            raise ValidationError("Estatísticas não podem conter valores negativos.")
+
     def __str__(self):
         return f"{self.jogador.nome} - {self.partida.arena.nome}"
+    
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
