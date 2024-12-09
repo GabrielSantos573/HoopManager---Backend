@@ -93,7 +93,7 @@ class Time(models.Model):
         return self.nome if self.nome else "Time sem Nome"
 
     def validar_numero_jogadores(self):
-        if self.num_jogadores < 5:
+        if self.num_jogadores < 1:
             raise ValidationError("O time deve ter pelo menos 5 jogadores.")
 
     def clean(self):
@@ -101,10 +101,11 @@ class Time(models.Model):
             raise ValidationError("O nome do time deve ter entre 3 e 25 caracteres.")
         if self.treinador and (len(self.treinador) < 3 or len(self.treinador) > 25):
             raise ValidationError("O nome do treinador deve ter entre 3 e 25 caracteres.")
-        if self.num_jogadores < 5:
+        if self.num_jogadores < 2:
             raise ValidationError("O time deve ter pelo menos 5 jogadores.")
         if self.vitorias < 0 or self.derrotas < 0:
             raise ValidationError("Vitórias e derrotas não podem ser negativas.")
+        self.validar_numero_jogadores
 
     def save(self, *args, **kwargs):
         self.full_clean()
