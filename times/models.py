@@ -148,7 +148,7 @@ class Arena(models.Model):
     nome = models.CharField(max_length=100, null=False, blank=False)
     local = models.CharField(max_length=200, null=True, blank=True)
     capacidade = models.IntegerField(null=True, blank=True)
-    time_casa = models.OneToOneField(Time, on_delete=models.SET_NULL, null=True, blank=True, related_name='arena')
+    time = models.OneToOneField(Time, on_delete=models.CASCADE, null=True, blank=True, related_name='arena')
     
     def __str__(self):
         return f"{self.nome} - {self.local}"
@@ -168,22 +168,22 @@ class Partida(models.Model):
     data = models.DateTimeField(null=False, blank=False)
     arena = models.ForeignKey(Arena, on_delete=models.CASCADE, related_name='partidas')
     status = models.CharField(max_length=15, choices=STATUS_PARTIDA, null=True, blank=True)
-    time_visitante = models.ForeignKey(Time, on_delete=models.CASCADE, related_name='partidas_visitante')
+    time = models.ForeignKey(Time, on_delete=models.CASCADE, null=True,related_name='partidas_como_time')  # Time principal
+    time_adversario = models.CharField(max_length=100, null=True, blank=True)  # Apenas o nome do time adversário
     placar_time_casa = models.IntegerField(default=0, null=True, blank=True)
     placar_time_visitante = models.IntegerField(default=0, null=True, blank=True)
 
+    def __str__(self):
+        return f"{self.time.nome} vs {self.time_adversario} - {self.data.strftime('%d/%m/%Y')}"
+
     def clean(self):
-        if self.data and self.data < timezone.now():
-            raise ValidationError("A data da partida não pode ser no passado.")
         if self.placar_time_casa < 0 or self.placar_time_visitante < 0:
             raise ValidationError("Os placares não podem ser negativos.")
 
-    def __str__(self):
-        return f"{self.arena.nome} - {self.data.strftime('%d/%m/%Y')}"
-    
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
 
 class EstatisticaPartida(models.Model):
     pontos = models.IntegerField(default=0, null=True, blank=True)
@@ -193,7 +193,7 @@ class EstatisticaPartida(models.Model):
     roubos_bola = models.IntegerField(default=0, null=True, blank=True)
     jogador = models.ForeignKey(Jogador, on_delete=models.CASCADE, null=True, blank=True)
     partida = models.ForeignKey(Partida, on_delete=models.CASCADE, null=True, blank=True)
-    tempo_jogo = models.DateTimeField(auto_now=False, auto_now_add=False, null=True, blank=True)
+    #tempo_jogo = models.DateTimeField(auto_now=False, auto_now_add=False, null=True, blank=True)
 
     def clean(self):
         if self.pontos < 0 or self.rebotes < 0 or self.assistencias < 0 or self.turnovers < 0 or self.roubos_bola < 0:
