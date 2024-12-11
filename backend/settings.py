@@ -27,6 +27,12 @@ SECRET_KEY = 'django-insecure-w5p&7ov&#xkin9kykhr9a)g(e3r0h^=@2i5qxe%xdi1mc4d6ra
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+import logging
+
+logger = logging.getLogger('django')
+logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler())
+
 ALLOWED_HOSTS = []
 
 
@@ -42,7 +48,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
-    'times'
+    'times',
+    'django_extensions'
 ]
 
 # Configurações do CORS

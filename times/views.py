@@ -5,6 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
 import json
 import traceback
+from datetime import datetime
 
 @csrf_exempt
 def get_times(request):
@@ -34,6 +35,7 @@ def get_times(request):
 
         arena = getattr(time, 'arena', None)
         arena_details = {
+            'id': arena.id if arena else None,
             'nome': arena.nome if arena else None,
             'local': arena.local if arena else None,
             'capacidade': arena.capacidade if arena else None,
@@ -127,22 +129,15 @@ def create_time(request):
 
             # Criação dos jogadores associados ao time
             for jogador_data in jogadores:
-                try:
-                    idade = int(jogador_data.get("idade", 0))
-                    altura = float(jogador_data.get("altura", 0))
-                    peso = float(jogador_data.get("peso", 0))
-                except ValueError:
-                    return JsonResponse({"error": "Idade, altura ou peso de um jogador é inválido."}, status=400)
-
                 Jogador.objects.create(
                     nome=jogador_data.get("nome"),
-                    idade=idade,
+                    idade=jogador_data.get("idade"),
                     posicao=jogador_data.get("posicao"),
                     status=jogador_data.get("status"),
-                    altura=altura,
-                    peso=peso,
-                    foto=request.FILES.get("foto", None),  # Foto enviada como arquivo
-                    time=time,  # Associação com o time recém-criado
+                    altura=jogador_data.get("altura"),
+                    peso=jogador_data.get("peso"),
+                    foto=None,  # Fotos individuais precisam de manuseio especial
+                    time=time,
                 )
 
             return JsonResponse({"message": "Time, jogadores e arena criados com sucesso!"}, status=201)
@@ -155,35 +150,63 @@ def create_time(request):
 def create_partida(request):
     if request.method == "POST":
         try:
-            data = json.loads(request.body)
+            print("=== Recebendo Dados no Backend ===")
+            print("Dados recebidos:", request.POST)
 
-            # Obtém e valida os dados necessários
-            arena_id = data.get("arena_id")
-            if not arena_id:
-                return JsonResponse({"error": "É necessário selecionar uma arena."}, status=400)
+            # Validação e conversão da data
+            partida_data = request.POST.get("data")
+            if not partida_data:
+                return JsonResponse({"error": "É necessário informar a data e hora da partida."}, status=400)
+            
+            from datetime import datetime
+            try:
+                partida_data = datetime.strptime(partida_data, "%Y-%m-%dT%H:%M")
+            except ValueError:
+                return JsonResponse({"error": "Formato de data inválido. Use YYYY-MM-DDTHH:MM."}, status=400)
 
-            arena = Arena.objects.get(id=arena_id)
-            time = arena.time  # Time associado à arena
+            # Validação do time
+            time_id = request.POST.get("time")
+            time = None
+            if time_id:
+                try:
+                    time = Time.objects.get(id=time_id)
+                    print("Time encontrado:", time)
+                except Time.DoesNotExist:
+                    return JsonResponse({"error": "O time selecionado não existe."}, status=404)
 
-            # Time adversário deve ter apenas o nome
-            time_adversario = data.get("time_adversario")
+            # Validação da arena
+            arena_id = request.POST.get("arena")
+            arena = None
+            if arena_id:
+                try:
+                    arena = Arena.objects.get(id=arena_id, time=time)  # Verifica se a arena pertence ao time
+                    print("Arena encontrada:", arena)
+                except Arena.DoesNotExist:
+                    print("Erro: Arena não encontrada para o time informado.")
+                    return JsonResponse({"error": "A arena selecionada não existe ou não pertence ao time informado."}, status=404)
+
+            # Validação do time adversário
+            time_adversario = request.POST.get("time_adversario")
             if not time_adversario:
                 return JsonResponse({"error": "É necessário informar o nome do time adversário."}, status=400)
 
             # Criação da partida
             partida = Partida.objects.create(
-                data=data.get("data"),
+                data=partida_data,
                 arena=arena,
-                status=data.get("status"),
+                status=request.POST.get("status"),
+                status_local=request.POST.get("status_local"),
                 time=time,
                 time_adversario=time_adversario,
             )
 
+            print("Partida criada com sucesso:", partida)
             return JsonResponse({"message": "Partida criada com sucesso!", "id": partida.id}, status=201)
-        except Arena.DoesNotExist:
-            return JsonResponse({"error": "A arena selecionada não existe."}, status=404)
+
         except Exception as e:
+            print("Erro inesperado:", str(e))
             return JsonResponse({"error": f"Erro ao criar partida: {str(e)}"}, status=400)
+
     else:
         return JsonResponse({"error": "Método não permitido"}, status=405)
 

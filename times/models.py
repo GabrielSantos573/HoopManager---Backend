@@ -19,8 +19,13 @@ STATUS = [
 
 STATUS_PARTIDA = [
     ('Agendada', 'agendada'),
-    ('em andamento', 'em andamento'),
-    ('finalizada', 'finalizada'),
+    ('Em Andamento', 'em andamento'),
+    ('Finalizada', 'finalizada'),
+]
+
+STATUS_PARTIDA_LOCAL = [
+    ('Em casa', 'Em casa'),
+    ('Fora', 'Fora'),
 ]
 
 REGIAO = [
@@ -166,15 +171,16 @@ class Arena(models.Model):
 
 class Partida(models.Model):
     data = models.DateTimeField(null=False, blank=False)
-    arena = models.ForeignKey(Arena, on_delete=models.CASCADE, related_name='partidas')
+    arena = models.ForeignKey(Arena, on_delete=models.CASCADE, related_name='partidas', null=True, blank=True)
     status = models.CharField(max_length=15, choices=STATUS_PARTIDA, null=True, blank=True)
+    status_local = models.CharField(max_length=15, choices=STATUS_PARTIDA_LOCAL, null=True, blank=True)
     time = models.ForeignKey(Time, on_delete=models.CASCADE, null=True,related_name='partidas_como_time')  # Time principal
     time_adversario = models.CharField(max_length=100, null=True, blank=True)  # Apenas o nome do time adversário
     placar_time_casa = models.IntegerField(default=0, null=True, blank=True)
     placar_time_visitante = models.IntegerField(default=0, null=True, blank=True)
 
     def __str__(self):
-        return f"{self.time.nome} vs {self.time_adversario} - {self.data.strftime('%d/%m/%Y')}"
+        return f"{self.time.nome} vs {self.time_adversario} - {self.data.strftime('%d/%m/%Y %H:%M')}"
 
     def clean(self):
         if self.placar_time_casa < 0 or self.placar_time_visitante < 0:
